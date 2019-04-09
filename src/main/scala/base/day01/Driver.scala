@@ -42,7 +42,7 @@ object Driver {
   def createStudent (g:Int, c:Int) : List[Student] = {
     var s = List[Student]()
     for(a <- 1 to 40){
-      s = new Student(g, c, "李程" + a,makeScore(2)+1,Map("Chinese"->makeScore(100),"Math"->makeScore(101),"English"->makeScore(100))) :: s
+      s = new Student(g, c, "李程" + a,makeScore(2)+1,Map("Chinese"->makeScore(101),"Math"->makeScore(101),"English"->makeScore(101))) :: s
     }
     s
   }
@@ -59,10 +59,32 @@ object Driver {
   def main(args:Array[String]){
 
     val grade = createGrade(3,6); // 创建3年级6个班
-    var totalSs = List[Student]()
     // 各班成绩单
     val claList = grade.classList // 所有班级集合
-    for(c <- 0 until claList.length) {
+
+    claList.foreach(cla=>{
+      val ss = cla.studentList
+      println("\n\n==================" + grade.gradName + "年级" + cla.cName + "班 成绩单 " + "==================")
+      ss.foreach(v=>println(v.description))
+
+      // 计算每班前5名(语文、数学、英语以及总分)
+      printTopFive(ss, "Chinese")
+      printTopFive(ss, "Math")
+      printTopFive(ss, "English")
+      printTopFive(ss, "")
+
+      // 计算每班各科平均分
+      printAverageScore(ss)
+
+      // 各班三科各等级人数比例(优:>=90;良:>=75,<90,及格:>=60,<75;不及格:<60)
+      printRankScale(ss, "Chinese")
+      printRankScale(ss, "Math")
+      printRankScale(ss, "English")
+    })
+
+    val totalSs = claList.flatten(_.studentList) // 将集合里面的students集合合并成一个新的集合
+
+    /*for(c <- 0 until claList.length) {
       val cla = claList(c) // 某班
       val ss = cla.studentList // 某班学生集合
       println("\n\n==================" + grade.gradName + "年级" + cla.cName + "班 成绩单 " + "==================")
@@ -85,7 +107,7 @@ object Driver {
 
       // 年级总分前20名
       totalSs = totalSs ::: ss
-    }
+    }*/
 
     println("\n===================年级总分前20名==================")
     printTopTwenty(totalSs, "")
@@ -109,13 +131,16 @@ object Driver {
     * @return
     */
   def rankScale (in : List[Student], subject : String): (Int, Int, Int, Int) = {
+    (in.count(_.mark(subject)>=90),in.count(v=>v.mark(subject)>=75&&v.mark(subject)<90),in.count(v=>v.mark(subject)>=60&&v.mark(subject)<75),in.count(_.mark(subject)<60))
+
+
     // t 为元组，v为List里面的每个值
-    val temp = in.foldLeft((0, 0, 0, 0))((t,v) => (
-      if(v.MARK(subject) >= 90) t._1 + 1 else t._1,
-      if(v.MARK(subject) >= 75 && v.MARK(subject) < 90) t._2 + 1 else t._2,
-      if(v.MARK(subject) >= 60 && v.MARK(subject) < 75) t._3 + 1 else t._3,
-      if(v.MARK(subject) < 60) t._4 + 1 else t._4))
-    temp
+    /*val temp = in.foldLeft((0, 0, 0, 0))((t,v) => (
+      if(v.mark(subject) >= 90) t._1 + 1 else t._1,
+      if(v.mark(subject) >= 75 && v.mark(subject) < 90) t._2 + 1 else t._2,
+      if(v.mark(subject) >= 60 && v.mark(subject) < 75) t._3 + 1 else t._3,
+      if(v.mark(subject) < 60) t._4 + 1 else t._4))
+    temp*/
   }
 
   /**
@@ -132,9 +157,14 @@ object Driver {
   def averageScore (in : List[Student]): (Int, Int, Int) = {
     // t 为元组，v为List里面的每个值
     val temp = in.foldLeft((0, 0, 0))((t,v) =>
-      (t._1 + v.MARK("Chinese"), t._2 + v.MARK("Math"), t._3 + v.MARK("English")))
+      (t._1 + v.mark.getOrElse("Chinese",0), t._2 + v.mark.getOrElse("Math",0), t._3 + v.mark.getOrElse("English",0)))
+    (temp._1/in.length,temp._2/in.length, temp._3/in.length)
+
+
+    /*val temp = in.foldLeft((0, 0, 0))((t,v) =>
+      (t._1 + v.mark("Chinese"), t._2 + v.mark("Math"), t._3 + v.mark("English")))
     val average = (temp._1/in.length,temp._2/in.length, temp._3/in.length)
-    average
+    average*/
   }
 
   /**
@@ -154,9 +184,14 @@ object Driver {
     * @return
     */
   def getScoreSort (s : List[Student], subject : String): List[Student] = {
-    if ( subject.isEmpty ) s.sortBy(_.MARK.values.sum)(Ordering.Int.reverse)
+    val flag = subject.isEmpty
+    flag match {
+      case true => s.sortBy(-_.mark.values.sum)
+      case _ => s.sortBy(-_.mark(subject))
+    }
+    /*if ( subject.isEmpty ) s.sortBy(-_.mark.values.sum)
     else
-      s.sortBy(_.MARK(subject))(Ordering.Int.reverse)
+      s.sortBy(-_.mark(subject))*/
   }
 
   /**
@@ -193,7 +228,7 @@ object Driver {
     * @param sex
     */
   def getSexSubjectSort(ss : List[Student], sex : Int, subject : String): List[Student] ={
-    getScoreSort(ss, subject).filter(_.SEX == sex)
+    getScoreSort(ss, subject).filter(_.sex == sex)
 }
 
   /**
@@ -203,10 +238,10 @@ object Driver {
     * @param subject
     */
   def printSexSubTop(ss : List[Student], sex : Int, subject : String): Unit ={
-    var sexStr = ""
+    val sexStr =
     sex match {
-      case Sex.female => sexStr = "female"
-      case Sex.male => sexStr = "male"
+      case Sex.female =>  "female"
+      case _ =>  "male"
     }
     println( sexStr + subject + "状元" + getSexSubjectSort(ss : List[Student], sex : Int, subject : String).head.description)
   }
